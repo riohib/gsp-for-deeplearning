@@ -22,7 +22,7 @@ main_model.py
 *.meta
 *.html
 *.png
-*.ipynb
+# *.ipynb
 *.pickle
 *.yml
 *.ipynb_checkpoints

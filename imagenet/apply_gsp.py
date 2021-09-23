@@ -29,7 +29,7 @@ class GSP_Model:
         if self.gsp_training_mode and (self.curr_epoch > self.start_gsp_epoch) and (self.curr_iter % self.gsp_int == 0):
             print("Applying GSP!!")
             self.apply_gsp_to_layers()
-            print(f"The total MODEL SPS: {self.get_model_sps()}")
+            # print(f"The total MODEL SPS: {self.get_model_sps():.2f}")
     
 
     def apply_gsp_to_layers(self):
@@ -39,9 +39,10 @@ class GSP_Model:
                 gsp_in = layer.weight.data.detach().reshape(layer.weight.shape[0], -1)
 
                 layer.weight.data = gsp_gpu.groupedsparseproj(gsp_in.T, sps = self.sps).T.reshape(w_shape)
-                print(f"Sparsity of layer: {name}: {sps_tools.sparsity(layer.weight.data)}")
-
-        print(f"Applied GSP to all Layers! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {self.sps}")
+                
+                # if self.curr_epoch == 0 and self.curr_iter == 0:
+                #     print(f"Sparsity of layer: {name}: {sps_tools.sparsity(layer.weight.data)}")
+        # if self.curr_epoch == 0 and self.curr_iter == 0:
         self.logger.info(f"Applied GSP to all Layers! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {self.sps}")
 
 
@@ -69,8 +70,9 @@ class GSP_Model:
                 print(f"Sparsity of layer: {name}: {layer_sps}")
 
 
-    # Pruning Methods
-    def register_mask(self, masks=None):
+
+    # ============== Pruning Methods ==============
+    def register_pre_hook_mask(self, masks=None):
         # self.masks = None
         self.unregister_mask()
         if masks is not None:
@@ -93,3 +95,36 @@ class GSP_Model:
         module.mask.requires_grad_(False)
         mask = module.mask
         module.weight.data.mul_(mask.to(module.weight.get_device()))
+
+    
+    
+    
+    # ============================ Pruning with Register Hook ============================
+    # Pruning with Just HOOK (Not forward pre hook, more stable)
+    # @staticmethod
+    # def register_hook_mask(model, keep_masks):
+
+    #     # Before I can zip() layers and pruning masks I need to make sure they match
+    #     # one-to-one by removing all the irrelevant modules:
+    #     prunable_layers = filter(
+    #         lambda layer: isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear), 
+    #         model.modules()
+    #         )
+
+    #     for layer, keep_mask in zip(prunable_layers, keep_masks):
+    #         assert (layer.weight.shape == keep_mask.shape)
+
+    #         def hook_factory(keep_mask):
+    #             """
+    #             The hook function can't be defined directly here because of Python's
+    #             late binding which would result in all hooks getting the very last
+    #             mask! Getting it through another function forces early binding.
+    #             """
+
+    #             def hook(grads):
+    #                 return grads * keep_mask
+
+    #             return hook
+
+    #         layer.weight.data[keep_mask == 0.] = 0.
+    #         layer.weight.register_hook(hook_factory(keep_mask))
