@@ -136,7 +136,7 @@ best_acc1 = 0
 
 
 def main():
-    args = parser.parse_args()   
+    args = parser.parse_args()    
 
     if args.seed is not None:
         random.seed(args.seed)
