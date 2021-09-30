@@ -1,7 +1,14 @@
 /__pycache__
+/checkpoint/baseline.pth
+/checkpoint/gsp_block.pth
+/checkpoint/gsp_finetune.pth
+/checkpoint/gsp_gates.pth
+
 /results
+
 /data
 /runs
+
 
 main_dali.py
 main_model.py
@@ -11,7 +18,7 @@ main_model.py
 *.pdf
 *.log
 
-*.pth
+# *.pth
 
 *.pyc
 *.mat
