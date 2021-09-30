@@ -236,11 +236,15 @@ def _apply_gsp_gates(self) -> None:
         if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
             self.gate_d[count] = layer.gsp_gate.detach().clone().flatten()
             count += 1
-
-    xp_mat, ni_list = gsp_pad.groupedsparseproj(self.gate_d, sps=0.85, precision=1e-6, linrat=0.9)
+    # try:
+    xp_mat, ni_list = gsp_pad.groupedsparseproj(self.gate_d, sps=0.65, precision=1e-6, linrat=0.9)
+    # except:
+    #     import pdb; pdb.set_trace()
+    
     sps_val = sps_tools.padded_sparsity(xp_mat, ni_list)
     
-    print(f"GSP applied to all!  epoch: {self.curr_epoch} | iter: {self.curr_iter} | gsp_int: {self.gsp_int} | sps: {sps_val}")
+    if self.logger != None:
+        self.logger.info(f"GSP applied to all!  epoch: {self.curr_epoch} | iter: {self.curr_iter} | gsp_int: {self.gsp_int} | sps: {sps_val}")
 
     cnt = 0
     for name, layer in self.named_modules():

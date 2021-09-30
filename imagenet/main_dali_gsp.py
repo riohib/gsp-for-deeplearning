@@ -186,7 +186,7 @@ def gsp_sparse_training(model, args):
     # Additional Class Variables for GSP
     model.sps = args.gsp_sps
     model.curr_iter = 0
-    model.start_gsp_epoch = 40
+    model.start_gsp_epoch = -1
     model.gsp_int = args.gsp_int
     model.logger = args.filelogger
 
@@ -480,6 +480,9 @@ def validate(val_loader, val_loader_len, model, criterion, args):
             if batch_idx % args.print_freq == 0:
                 progress.display(batch_idx)
                 args.filelogger.info(f"Validation: [{batch_idx}/{val_loader_len}] | Acc@1: {top1.avg:.3f} | Acc@5: {top5.avg:.3f}")
+
+    args.filelogger.info(f"Validation: [{batch_idx}/{val_loader_len}] | Acc@1: {top1.avg:.3f} | Acc@5: {top5.avg:.3f}")
+    print(f"Validation: [{batch_idx}/{val_loader_len}] | Acc@1: {top1.avg:.3f} | Acc@5: {top5.avg:.3f}")
 
     return top1.avg, loss
 

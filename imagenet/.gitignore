@@ -1,5 +1,5 @@
 /__pycache__
-/results
+/results/baseline
 
 main_dali.py
 main_model.py
@@ -8,7 +8,9 @@ main_model.py
 *.dat
 *.pdf
 *.log
-*.pth
+
+# *.pth
+
 *.pyc
 *.mat
 *.txt
