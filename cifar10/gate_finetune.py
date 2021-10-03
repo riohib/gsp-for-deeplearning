@@ -30,15 +30,19 @@ parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true',
                     help='resume from checkpoint')
+parser.add_argument('--resume-path', default='', type=str, metavar='PATH',
+                    help='path to latest checkpoint (default: none)')
 
 parser.add_argument( "--exp-name", metavar="EXPNAME", default="baseline",
                     help="Name of the current experiment",)
 parser.add_argument( "--logdir", metavar="LOGDIR", default="/logs",
                     help="directory path for log files",)
-parser.add_argument('--gsp-sps', default=0.80, type=float,
+parser.add_argument('--pre-gsp-sps', default=0.80, type=float,
                     metavar='SPS', help='gsp sparsity value')
 parser.add_argument('--gsp-int', default=100, type=int,
-                    metavar='N', help='GSP projection frequency iteration (default: 500)')
+                    metavar='N', help='GSP projection frequency iteration (default: 100)')
+parser.add_argument('--prune-sps', default=0.80, type=float,
+                    metavar='SPS', help='gsp sparsity value')
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -60,7 +64,7 @@ def setup_experiment(args):
 def gsp_sparse_training(model, args):
     # Additional Class Variables for GSP
     print(f"ARGS GSP INT: {args.gsp_int}")
-    model.sps = args.gsp_sps
+    model.sps = args.pre_gsp_sps
     model.curr_iter = 0
     model.start_gsp_epoch = -1
     model.gsp_int = args.gsp_int
@@ -131,7 +135,7 @@ def main():
         # Load checkpoint.
         print('==> Resuming from checkpoint..')
         assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-        checkpoint = torch.load('./checkpoint/gsp_gates_1.pth')
+        checkpoint = torch.load(args.resume_path)
         model.load_state_dict(checkpoint['model'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
@@ -147,17 +151,18 @@ def main():
     # gsp_sparse_training(model, args)
     # bind_gsp_methods_to_model(model, args, apply_gsp=True)
 
+    # ============================= PRUNING =================================== #
     args.filelogger.info(f"SPS of loaded model: {sps_tools.get_abs_sps(model)}")
 
     model.gsp_training_mode = False
-    gate_methods.prune_gates(model, prune_sps=0.8)
+    gate_methods.prune_gates(model, prune_sps=args.prune_sps)
     
     args.filelogger.info(f"SPS of pruned model: {sps_tools.get_abs_sps(model)}")
 
 
     start_epoch = 0
     
-    scheduler = MultiStepLR(optimizer, milestones=[150, 250, 325], gamma=0.1)
+    scheduler = MultiStepLR(optimizer, milestones=[150, 250, 300, 350], gamma=0.1)
     for epoch in range(start_epoch, start_epoch+400):
         train(model, optimizer, criterion, trainloader, epoch, args)
         test(model, criterion, testloader, epoch, args)
@@ -238,8 +243,10 @@ def test(model, criterion, testloader, epoch, args):
         }
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
-        torch.save(state, './checkpoint/gate_finetune.pth')
+        torch.save(state, f'./checkpoint/gates_inS{args.pre_gsp_sps}_ft_S{args.prune_sps}.pth')
         best_acc = acc
+
+    args.filelogger.info(f"Best Accuracy: {best_acc}")
 
 if __name__ == '__main__':
     main()

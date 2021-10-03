@@ -237,7 +237,7 @@ def _apply_gsp_gates(self) -> None:
             self.gate_d[count] = layer.gsp_gate.detach().clone().flatten()
             count += 1
     # try:
-    xp_mat, ni_list = gsp_pad.groupedsparseproj(self.gate_d, sps=0.65, precision=1e-6, linrat=0.9)
+    xp_mat, ni_list = gsp_pad.groupedsparseproj(self.gate_d, sps=self.sps, precision=1e-6, linrat=0.9)
     # except:
     #     import pdb; pdb.set_trace()
     

@@ -17,9 +17,7 @@ main_model.py
 *.dat
 *.pdf
 *.log
-
-# *.pth
-
+*.pth
 *.pyc
 *.mat
 *.txt

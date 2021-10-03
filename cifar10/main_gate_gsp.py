@@ -34,9 +34,9 @@ parser.add_argument( "--exp-name", metavar="EXPNAME", default="baseline",
 parser.add_argument( "--logdir", metavar="LOGDIR", default="/logs",
                     help="directory path for log files",)
 parser.add_argument('--gsp-sps', default=0.80, type=float,
-                    metavar='SPS', help='gsp sparsity value')
+                    metavar='SPS', help='gsp sparsity value')            
 parser.add_argument('--gsp-int', default=100, type=int,
-                    metavar='N', help='GSP projection frequency iteration (default: 500)')
+                    metavar='N', help='GSP projection frequency iteration (default: 100)')
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -146,7 +146,7 @@ def main():
 
     print(f"ARGS model GSP INT: {model.gsp_int}")
 
-    scheduler = MultiStepLR(optimizer, milestones=[200, 300, 400], gamma=0.1)
+    scheduler = MultiStepLR(optimizer, milestones=[200, 300, 350, 400], gamma=0.1)
     for epoch in range(start_epoch, start_epoch+450):
         train(model, optimizer, criterion, trainloader, epoch, args)
         test(model, criterion, testloader, epoch, args)
@@ -229,7 +229,7 @@ def test(model, criterion, testloader, epoch, args):
         }
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
-        torch.save(state, './checkpoint/' +str(args.exp_name) + '_1.pth')
+        torch.save(state, './checkpoint/' +str(args.exp_name) + '.pth')
         best_acc = acc
 
 if __name__ == '__main__':
