@@ -15,7 +15,7 @@ class SUBVGG(nn.Module):
     def __init__(self, vgg_name, cfg):
         super(SUBVGG, self).__init__()
         self.features = self._make_layers(cfg[vgg_name])
-        self.classifier = nn.Linear(512, 10)
+        self.classifier = nn.Linear(cfg[vgg_name][-2], 10)
 
     def _make_layers(self, cfg):
         layers = []
