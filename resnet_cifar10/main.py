@@ -12,6 +12,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import resnet
+from torch.optim.lr_scheduler import MultiStepLR
 
 from datetime import datetime
 
@@ -45,6 +46,7 @@ parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N', help='mini-batch size (default: 128)')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate')
+parser.add_argument("--lr-drop", nargs="*", type=int, default=[100, 150],)
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
@@ -83,7 +85,7 @@ parser.add_argument('--gsp-int', default=150, type=int,
 parser.add_argument('--gsp-start-ep', default=-1, type=int,
                     metavar='N', help='Epoch to start gsp projection')
 
-parser.add_argument('--finetuning', action='store_true',
+parser.add_argument('--finetune', action='store_true',
                     help='Finetune a select subset of parameters of a sparse model.')
 parser.add_argument('--finetune-sps', default=0.85, type=float,
                     metavar='SPS', help='gsp sparsity value')
@@ -171,22 +173,16 @@ def main():
         flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
 
     # ============== PRUNE the model and Register Mask ==============
-    if args.finetuning:
+    if args.finetune:
         flogger.info(15*"*" + " Model will be finetuned!! " + 15*"*")
-        sps_tools.prune_with_sps(model_gsp.model.module, sparsity = args.finetune_sps)
-        masks_d, masks_l = sps_tools.get_conv_linear_mask(model_gsp.model.module)
-        model_gsp.register_pre_hook_mask(masks_d) # This for forward pre hook mask registration
-        # model_gsp.register_hook_mask(model.module, masks_l) # Does not work with DDP
+        model_gsp.prune_and_mask_model(sps=args.finetune_sps)
 
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
-                    milestones=[80, 120], last_epoch=args.start_epoch - 1)
-
-    
+    scheduler = MultiStepLR(optimizer, milestones=args.lr_drop, last_epoch=args.start_epoch - 1)
     for epoch in range(args.start_epoch, args.epochs):
     
-        train(train_loader, model_gsp, criterion, optimizer, epoch) # Train model
-        prec1 = validate(val_loader, model, criterion) # evaluate on validation set
+        train(train_loader, model_gsp, criterion, optimizer, epoch, args) # Train model
+        prec1 = validate(val_loader, model_gsp.model, criterion, args) # evaluate on validation set
 
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_acc1
@@ -212,7 +208,7 @@ def main():
         scheduler.step()
 
 
-def train(train_loader, model_gsp, criterion, optimizer, epoch):
+def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=None):
     """
         Run one train epoch
     """
@@ -223,9 +219,9 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch):
 
     # switch to train mode
     model_gsp.model.train()
-    model_gsp.gsp_training_mode = True
+    model_gsp.gsp_training_mode = True if (gsp_mode==None) else gsp_mode
     flogger = args.filelogger
-
+    len_trainloader = len(train_loader)
     end = time.time()
     for i, (input, target) in enumerate(train_loader):
 
@@ -247,8 +243,8 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch):
         output = model_gsp.model(input_var)
         loss = criterion(output, target_var)
 
-        if i % 390 == 0:
-            flogger.info(f"------ modelSPS before optimization: {model_gsp.get_model_sps():.2f}%")
+        if i % len_trainloader == 0:
+            flogger.info(f"modelSPS before optimization: {model_gsp.get_model_sps():.2f}%")
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -269,10 +265,10 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch):
         if i % args.print_freq == 0:
             flogger.info(f"Training: epoch:[{epoch}][{i}/{len(train_loader)}] | Acc@1: {top1.avg:.2f} |" \
                 f"LR: {optimizer.param_groups[0]['lr']:.5f} | Mcurr_epoch {model_gsp.curr_epoch}/{epoch}"\
-                f" | Mcurr_itr: {model_gsp.curr_iter}/{i} | modelSPS: {model_gsp.get_model_sps():.2f}%")
+                f" | Mcurr_itr: {model_gsp.curr_iter-1}/{i} | modelSPS: {model_gsp.get_model_sps():.2f}%")
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, args):
     """
     Run evaluation
     """

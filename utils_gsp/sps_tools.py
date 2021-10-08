@@ -772,6 +772,8 @@ def prune_with_sps(model, sparsity):
     sorted_weights, indices = torch.sort(weight_tensor.abs())
     threshold = sorted_weights[:math.ceil(wpct_val)+1][-1]
 
+    print(f"Pruning with threshold: {threshold}")
+
     for name, p in model.named_parameters():
         tensor = p.data
         # print(f'Pruning with threshold : {threshold} for layer {name}')
