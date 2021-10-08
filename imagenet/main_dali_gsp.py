@@ -320,7 +320,7 @@ def main_worker(gpu, ngpus_per_node, args):
     gsp_sparse_training(model_gsp, args)
 
     if args.gsp_training:
-        flogger.info(15*"*" + "Model will be trained with GSP Sparsity!!" + 15*"*" )
+        flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
 
     # ============== PRUNE the model and Register Mask ==============
     if args.finetuning:

@@ -10,13 +10,22 @@
 /cifar10/checkpoint/gate_finetune_*
 /cifar10/checkpoint/gates_*
 
+/resnet_cifar10/data
+/resnet_cifar10/pretrained_models
+/resnet_cifar10/results
+/resnet_cifar10/save_resnet20
+
+
+
 /utils_gsp/matrices
+
 
 /results
 
 /data
 /runs
 
+# /resnet_cifar10
 
 main_dali.py
 main_model.py
