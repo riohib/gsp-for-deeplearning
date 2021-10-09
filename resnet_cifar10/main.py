@@ -91,7 +91,7 @@ parser.add_argument('--finetune-sps', default=0.85, type=float,
                     metavar='SPS', help='gsp sparsity value')
 
 best_acc1 = 0
-
+best_epoch = 0
 
 def main():
     global args, best_acc1
@@ -187,6 +187,8 @@ def main():
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_acc1
         best_acc1 = max(prec1, best_acc1)
+        if is_best:
+            best_epoch = epoch 
 
         if epoch > 0 and epoch % args.save_every == 0:
             save_checkpoint({
@@ -206,6 +208,16 @@ def main():
         }, is_best, args, filename=  f'results/{args.exp_name}/checkpoint.pth.tar')
         
         scheduler.step()
+    
+    # Exit Metrics
+    pre1 = validate(val_loader, model_gsp.model, criterion, args)
+    flogger.info(f"Validation accuracy post training: {pre1}")
+    model_gsp.mask_out_parameters() # Force Masked Parameters to zero
+
+    post1 = validate(val_loader, model_gsp.model, criterion, args)
+    flogger.info(f"Validation accuracy post force masking parameters: {post1}")
+    # Exit
+    flogger.info(f"\n Final Model SPS: {model_gsp.get_model_sps():.2f}% | Best @acc: {best_acc1} achieved in epoch: {best_epoch}")
 
 
 def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=None):
@@ -267,6 +279,7 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=N
                 f"LR: {optimizer.param_groups[0]['lr']:.5f} | Mcurr_epoch {model_gsp.curr_epoch}/{epoch}"\
                 f" | Mcurr_itr: {model_gsp.curr_iter-1}/{i} | modelSPS: {model_gsp.get_model_sps():.2f}%")
 
+        
 
 def validate(val_loader, model, criterion, args):
     """
