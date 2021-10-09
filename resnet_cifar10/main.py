@@ -61,9 +61,6 @@ parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 parser.add_argument('--half', dest='half', action='store_true',
                     help='use half-precision(16-bit) ')
-parser.add_argument('--save-dir', dest='save_dir',
-                    help='The directory used to save the trained models',
-                    default='save_temp', type=str)
 parser.add_argument('--save-every', dest='save_every',
                     help='Saves checkpoints at every specified number of epochs',
                     type=int, default=10)
@@ -102,25 +99,9 @@ def main():
     flogger = setup_experiment(args)
     args.logger.log_cmd_arguments(args)
 
-    # Check the save_dir exists or not
-    if not os.path.exists(args.save_dir):
-        os.makedirs(args.save_dir)
-
     model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
     model.cuda()
 
-    # optionally resume from a checkpoint
-    if args.resume:
-        if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
-            best_acc1 = checkpoint['best_acc1']
-            model.load_state_dict(checkpoint['state_dict'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.evaluate, checkpoint['epoch']))
-        else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
 
     cudnn.benchmark = True
 
@@ -149,7 +130,7 @@ def main():
     # ----------------------- Make a GSP Model -----------------------
     model_gsp = GSP_Model(model)
 
-    flogger.info(f"The sparsity of the model is: {model_gsp.get_model_sps():.2f}")
+    flogger.info(f"The sparsity of Initialized Model: {model_gsp.get_model_sps():.2f}")
     args.writer = SummaryWriter(log_dir=f'results/{args.exp_name}/runs/{datetime.now().strftime("%m-%d_%H:%M")}')
     
     # define loss function (criterion) and optimizer
@@ -163,19 +144,34 @@ def main():
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
-    if args.evaluate:
-        validate(val_loader, model, criterion)
-        return
-
     # ============================ Setup GSP model ============================
     if args.gsp_training:
         gsp_sparse_training(model_gsp, train_loader, args)
         flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
 
+    # optionally resume from a checkpoint
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print("=> Loading Model from CheckPoint '{}'".format(args.resume))
+            checkpoint = torch.load(args.resume)
+            args.start_epoch = checkpoint['epoch'] if not args.finetune else 0
+            best_acc1 = checkpoint['best_acc1'] if not args.finetune else 0
+            model.load_state_dict(checkpoint['state_dict'])
+            print(f"=> loaded checkpoint at (epoch {checkpoint['epoch']})")
+            validate(val_loader, model_gsp.model, criterion, args)
+            flogger.info(f"The sparsity of the loaded model is: {model_gsp.get_model_sps():.2f}")
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
+
     # ============== PRUNE the model and Register Mask ==============
     if args.finetune:
         flogger.info(15*"*" + " Model will be finetuned!! " + 15*"*")
         model_gsp.prune_and_mask_model(sps=args.finetune_sps)
+
+    if args.evaluate:
+        validate(val_loader, model, criterion)
+        return
+
 
 
     scheduler = MultiStepLR(optimizer, milestones=args.lr_drop, last_epoch=args.start_epoch - 1)
@@ -320,7 +316,7 @@ def validate(val_loader, model, criterion, args):
             end = time.time()
 
 
-    args.filelogger.info(f"\n Validation: [{batch_idx}/{len(val_loader)}] | Acc@1: {top1.avg:.3f} \n")
+    args.filelogger.info(f"\n Validation Acc@1: {top1.avg:.3f} \n")
 
     return top1.avg
 

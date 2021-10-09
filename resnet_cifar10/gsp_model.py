@@ -69,13 +69,13 @@ class GSP_Model:
     def get_model_sps(self):
         nonzero = total = 0
         for name, param in self.model.named_parameters():
-            # print(name)
-            tensor = param.detach().clone()
-            # nz_count.append(torch.count_nonzero(tensor))
-            nz_count = torch.count_nonzero(tensor).item()
-            total_params = tensor.numel()
-            nonzero += nz_count
-            total += total_params
+            if 'mask' not in name:
+                tensor = param.detach().clone()
+                # nz_count.append(torch.count_nonzero(tensor))
+                nz_count = torch.count_nonzero(tensor).item()
+                total_params = tensor.numel()
+                nonzero += nz_count
+                total += total_params
         
         tensor = None
         # print(f"TOTAL: {total}")
