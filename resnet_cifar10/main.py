@@ -11,7 +11,7 @@ import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-import resnet
+import networks.resnet as resnet
 from torch.optim.lr_scheduler import MultiStepLR
 
 from datetime import datetime
@@ -22,20 +22,15 @@ from utils_gsp.logger import Logger
 from utils_gsp import sps_tools
 from gsp_model import GSP_Model
 
+import networks.load as load
+
 from torch.utils.tensorboard import SummaryWriter
 
-model_names = sorted(name for name in resnet.__dict__
-    if name.islower() and not name.startswith("__")
-                     and name.startswith("resnet")
-                     and callable(resnet.__dict__[name]))
 
-print(model_names)
 
 parser = argparse.ArgumentParser(description='Propert ResNets for CIFAR10 in pytorch')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet32',
-                    choices=model_names,
-                    help='model architecture: ' + ' | '.join(model_names) +
-                    ' (default: resnet32)')
+                    help='model architecture to use!')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=160, type=int, metavar='N',
@@ -73,6 +68,9 @@ parser.add_argument( "--exp-name", metavar="EXPNAME", default="baseline",
 parser.add_argument( "--logdir", metavar="LOGDIR", default="/logs",
                     help="directory path for log files",)
 
+parser.add_argument('--baseline', action='store_true',
+                    help='Train a baseline dense model!')
+
 parser.add_argument('--gsp-training', action='store_true',
                     help='Train the model with gsp projection every few iteration (--gsp-int)')
 parser.add_argument('--gsp-sps', default=0.8, type=float,
@@ -99,9 +97,10 @@ def main():
     flogger = setup_experiment(args)
     args.logger.log_cmd_arguments(args)
 
-    model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
+    # Load Model
+    model = load.model(args.arch)
+    model = torch.nn.DataParallel(model)
     model.cuda()
-
 
     cudnn.benchmark = True
 
@@ -144,27 +143,28 @@ def main():
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
-    # ============================ Setup GSP model ============================
-    if args.gsp_training:
-        gsp_sparse_training(model_gsp, train_loader, args)
-        flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
-
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
-            print("=> Loading Model from CheckPoint '{}'".format(args.resume))
+            flogger.info("=> Loading Model from CheckPoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch'] if not args.finetune else 0
             best_acc1 = checkpoint['best_acc1'] if not args.finetune else 0
             model.load_state_dict(checkpoint['state_dict'])
-            print(f"=> loaded checkpoint at (epoch {checkpoint['epoch']})")
+            flogger.info(f"=> loaded checkpoint at succesfully from (epoch {checkpoint['epoch']})")
             validate(val_loader, model_gsp.model, criterion, args)
             flogger.info(f"The sparsity of the loaded model is: {model_gsp.get_model_sps():.2f}")
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            print("*=> LOADING FAILED: no checkpoint found at '{}'".format(args.resume))
+
+
+    # ============================ Setup GSP model ============================
+    if args.gsp_training and not args.baseline:
+        gsp_sparse_training(model_gsp, train_loader, args)
+        flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
 
     # ============== PRUNE the model and Register Mask ==============
-    if args.finetune:
+    if args.finetune and not args.baseline:
         flogger.info(15*"*" + " Model will be finetuned!! " + 15*"*")
         model_gsp.prune_and_mask_model(sps=args.finetune_sps)
 
