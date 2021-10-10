@@ -15,16 +15,21 @@ class GSP_Model:
     def __init__(self, model, sps=0.8) -> None:
         #  Class Variables for GSP
         self.model = model
-        self.gsp_training_mode = False
-        self.sps = 0.0
+        
         self.curr_epoch = 0
         self.curr_iter = 0
+        
         self.start_gsp_epoch = 0
+        self.gsp_training_mode = False
+        self.sps = 0.0
         self.gsp_int = 0
+        self.proj_filters = True
+        
         self.logger = None
         self.masks = None
         self.train_loader_len = None
         self.device = next(self.model.parameters()).device
+    
     
     def mask_out_parameters(self):
         for name, module in self.model.named_modules():
@@ -58,12 +63,14 @@ class GSP_Model:
                 w_shape = layer.weight.shape
                 gsp_in = layer.weight.data.detach().reshape(layer.weight.shape[0], -1)
 
-                layer.weight.data = gsp_gpu.groupedsparseproj(gsp_in.T, sps = sps).T.reshape(w_shape)
-                
-                # if self.curr_epoch == 0 and self.curr_iter == 0:
-                #     print(f"Sparsity of layer: {name}: {sps_tools.sparsity(layer.weight.data)}")
-        # if self.curr_epoch == 0 and self.curr_iter == 0:
-        self.logger.info(f"Applied GSP to all Layers! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {sps}")
+                if self.proj_filters:
+                    layer.weight.data = gsp_gpu.groupedsparseproj(gsp_in.T, sps = sps).T.reshape(w_shape)
+                else:
+                    layer.weight.data = gsp_gpu.groupedsparseproj(gsp_in, sps = sps).reshape(w_shape)
+        
+
+        if self.logger != None:
+            self.logger.info(f"Applied GSP to all Layers! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {sps}")
 
 
     def get_model_sps(self):

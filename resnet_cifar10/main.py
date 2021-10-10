@@ -206,12 +206,13 @@ def main():
         scheduler.step()
     
     # Exit Metrics
-    pre1 = validate(val_loader, model_gsp.model, criterion, args)
-    flogger.info(f"Validation accuracy post training: {pre1}")
-    model_gsp.mask_out_parameters() # Force Masked Parameters to zero
+    if args.finetune:
+        pre1 = validate(val_loader, model_gsp.model, criterion, args)
+        flogger.info(f"Validation accuracy post training: {pre1}")
+        model_gsp.mask_out_parameters() # Force Masked Parameters to zero
+        post1 = validate(val_loader, model_gsp.model, criterion, args)
+        flogger.info(f"Validation accuracy post force masking parameters: {post1}")
 
-    post1 = validate(val_loader, model_gsp.model, criterion, args)
-    flogger.info(f"Validation accuracy post force masking parameters: {post1}")
     # Exit
     flogger.info(f"\n Final Model SPS: {model_gsp.get_model_sps():.2f}% | Best @acc: {best_acc1} achieved in epoch: {best_epoch}")
 
