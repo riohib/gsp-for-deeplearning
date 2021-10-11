@@ -8,9 +8,10 @@ import logging
 import pdb
 import time
 
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 def sparsity(matrix):
+    device=matrix.device
     matrix = matrix.detach().clone()
     ni = torch.tensor(matrix.shape[0], device=matrix.device)
 
@@ -30,6 +31,7 @@ def sparsity(matrix):
 
 
 def checkCritical(matrix, critval_list, precision=1e-6):
+    device=matrix.device
     max_elems = torch.max(matrix, 0)[0]
 
     ind_crit_bool = (abs(matrix - max_elems) < precision)
@@ -48,6 +50,7 @@ def checkCritical(matrix, critval_list, precision=1e-6):
 
 
 def gmu(matrix, xp_mat, mu=0):
+    device=matrix.device
     vgmu = 0
     gradg = 0
     matrix = torch.abs(matrix)
@@ -113,16 +116,7 @@ def gmu(matrix, xp_mat, mu=0):
 
 def groupedsparseproj(matrix, sps, precision=1e-6, linrat=0.9):
     # sps = 0.9 ;  precision=1e-6; linrat=0.9
-    global device
-    # print(f"The device from GPU-proj matrix: {str(matrix.device)}")
-    if str(matrix.device) != 'cpu':
-        device = torch.device('cuda')
-        # print("The device is cuda")
-    if str(matrix.device) == 'cpu':
-        device = torch.device('cpu')
-        # print("The device is cpu")
-    if str(matrix.device) == 'cpu':
-        print("Device neither CPU nor CUDA! Please check!")
+    device=matrix.device
 
     epsilon = 10e-15
     k = 0
