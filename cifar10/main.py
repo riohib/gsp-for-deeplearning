@@ -76,11 +76,11 @@ parser.add_argument('--gsp-training', action='store_true',
 parser.add_argument('--gsp-sps', default=0.8, type=float,
                     metavar='SPS', help='gsp sparsity value')
 parser.add_argument('--proj-filters',  action='store_true',
-                    metavar='N', help='Projects the cnn filters when true, otherwise projects along kernel positions')
+                    help='Projects the cnn filters when true, otherwise projects along kernel positions')
 parser.add_argument('--gsp-int', default=150, type=int,
-                    metavar='N', help='GSP projection frequency iteration (default: 500)')
+                    metavar='GSPINT', help='GSP projection frequency iteration (default: 500)')
 parser.add_argument('--gsp-start-ep', default=-1, type=int,
-                    metavar='N', help='Epoch to start gsp projection')
+                    metavar='GSPSTART', help='Epoch to start gsp projection')
 
 parser.add_argument('--finetune', action='store_true',
                     help='Finetune a select subset of parameters of a sparse model.')
@@ -335,6 +335,7 @@ def setup_experiment(args):
     args.filelogger = args.logger.get_file_logger()
     # args.filelogger.info(f"From: rank: {args.rank} | gpu: {args.gpu}")
     return args.filelogger
+
 
 def gsp_sparse_training(model, train_loader, args):
     # Additional Class Variables for GSP

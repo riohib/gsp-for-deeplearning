@@ -10,7 +10,6 @@ import time
 
 # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
 def sparsity(matrix):
     matrix = matrix.detach().clone()
     ni = torch.tensor(matrix.shape[0], device=matrix.device)
@@ -160,57 +159,39 @@ def groupedsparseproj(matrix, sps, precision=1e-6, linrat=0.9):
         numiter = 0
         return xp_mat
     else:
-        numiter = 0
-        mulow = 0
+        numiter = 0; 
+        mulow = 0; muup = muup0
         glow = vgmu
-        muup = muup0
         # Initialization on mu using 0, it seems to work best because the
         # slope at zero is rather steep while it is gets falt for large mu
-        newmu = 0
-        gnew = glow
-        gpnew = gradg  # g'(0)
+        newmu = 0; gnew = glow; gpnew = gradg  # g'(0)
         delta = muup - mulow
-        switch = True
 
-        # pdb.set_trace()
         while abs(gnew - k) > precision * r and numiter < 100:
             oldmu = newmu
-            # % Secant method:
-            # % newmu = mulow + (k-glow)*(muup-mulow)/(gup-glow);
-
-            # % Bisection:
-            # % newmu = (muup+mulow)/2;
             # % Newton:
             newmu = oldmu + (k - gnew) / (gpnew + epsilon)
 
             if (newmu >= muup) or (newmu <= mulow):  # If Newton goes out of the interval, use bisection
                 newmu = (mulow + muup) / 2
 
-            # print( 'Value of numiter: ' + str(numiter))
             gnew, xnew, gpnew = gmu(matrix, xp_mat, newmu)
 
             if gnew < k:
-                gup = gnew
-                xup = xnew
-                muup = newmu
+                gup = gnew; xup = xnew; muup = newmu
             else:
-                glow = gnew
-                mulow = xnew
-                mulow = newmu
-
+                glow = gnew; mulow = xnew; mulow = newmu
+                
             # Guarantees linear convergence
             if (muup - mulow) > linrat * delta and abs(oldmu - newmu) < (1 - linrat) * delta:
                 newmu = (mulow + muup) / 2
                 gnew, xnew, gpnew = gmu(matrix, xp_mat, newmu)
 
                 if gnew < k:
-                    gup = gnew
-                    xup = xnew
-                    muup = newmu
+                    gup = gnew; xup = xnew; muup = newmu
                 else:
-                    glow = gnew
-                    mulow = xnew
-                    mulow = newmu
+                    glow = gnew; mulow = xnew; mulow = newmu
+
                 numiter += 1
             numiter += 1
 
@@ -219,76 +200,15 @@ def groupedsparseproj(matrix, sps, precision=1e-6, linrat=0.9):
                 print('The objective function is discontinuous around mu^*.')
                 xp = xnew
                 gxpmu = gnew
-        try:
+
             xp_mat = xnew
-            # print(' xp_mat = xnew')
-        except:
-            # scipy.io.savemat('matrix.mat', mdict={'arr': matrix})
-            torch.save(matrix, 'prob_tensor.pt')
 
         gxpmu = gnew
 
-    # pdb.set_trace()
-
-    # alpha = torch.zeros([1, matrix.shape[1]], device=device)
-    # for i in range(r):
-    #     alpha[0, i] = torch.matmul(xp_mat[:, i], pos_matrix[:, i])
-    #     xp_mat[:, i] = alpha[:, i] * (matrix_sign[:, i] * xp_mat[:, i])
     alpha_mat = torch.matmul(xp_mat.T, pos_matrix)
-    # try:
-    #     alpha_mat = torch.matmul(xp_mat.T, pos_matrix)
-    # except:
-    #     pdb.set_trace()
-
     alpha = torch.diagonal(alpha_mat)
     xp_mat = alpha * (matrix_sign * xp_mat)
-
+    
+    outinfo = { 'numiter': numiter, 'gxpmu':gxpmu, 'newmu':newmu} #for Plotting
+    
     return xp_mat
-
-
-def load_matrix_debug():
-    with open("./matrices/matrix_1.pkl", "rb") as fpA:  # Pickling
-        matrix = pickle.load(fpA)
-        # matrix = matrix.detach()
-        matrix = torch.from_numpy(matrix)
-    return matrix
-
-## ********************************************************************************** ##
-
-# matrix = load_matrix_debug()
-# matrix = matrix.to(device)
-# start_time = time.time()
-# sps = 0.9
-# precision = 1e-6
-# linrat = 0.9
-# X = groupedsparseproj(matrix, sps, precision=1e-6, linrat=0.9)
-# print("--- %s seconds ---" % (time.time() - start_time))
-
-
-# r = 100
-# n = 10000
-# k = 0
-
-# ## Data Loacing
-# # mu, sigma = 0, 1 # mean and standard deviation
-# # x = np.random.normal(mu, sigma, (10000, 100)) * 10
-
-# with open('matnew.pkl', 'rb') as fin:
-#     x = pickle.load(fin)
-# ## ****************************************
-
-# xPos = np.abs(x)
-
-# for i in range(r):
-#     k = k + np.sqrt(n) / (np.sqrt(n) - 1)
-
-# sp = sparsity(x)
-
-# print("The Sparsity of input set of vectors: " + str(sp))
-
-# xp_mat = groupedsparseproj(x, 0.8)
-
-# spNew = sparsity(xp_mat)
-
-# print("The Output Sparsity: " + str(spNew))
-
