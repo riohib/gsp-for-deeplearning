@@ -157,7 +157,7 @@ def main():
             validate(val_loader, model_gsp.model, criterion, args)
             flogger.info(f"The sparsity of the loaded model is: {model_gsp.get_model_sps():.2f}")
         else:
-            print("*=> LOADING FAILED: no checkpoint found at '{}'".format(args.resume))
+            flogger.info("*=> LOADING FAILED: no checkpoint found at '{}'".format(args.resume))
 
 
     # ============================ Setup GSP model ============================

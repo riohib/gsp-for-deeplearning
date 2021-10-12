@@ -10,6 +10,7 @@ import sys
 sys.path.append('/data/users2/rohib/github/testing')
 # import utils_gsp.sps_tools as sps_tools
 import utils_gsp.gpu_projection as gsp_gpu
+# import utils_gsp.gsp_general as gsp_gen
 
 class GSP_Model:
     def __init__(self, model, sps=0.8) -> None:
@@ -74,6 +75,29 @@ class GSP_Model:
                              f"Filter-Proj: {self.proj_filters}")
 
 
+    # def project_all_layers(self, sps):
+    #     layer_d = dict()
+    #     shape_d = dict()
+    #     ctr = 0
+    #     for i, (name, layer) in enumerate(self.model.named_modules()):
+    #         if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+    #             shape_d[name] = layer.weight.shape
+    #             layer_d[ctr] = layer.weight.data.detach().clone().flatten()
+    #             ctr+=1
+
+    #     xp_mat, ni_list = gsp_gen.GSP(layer_d, sps=sps)
+    #     out_layers = gsp_gen.unpad_output_mat(xp_mat, ni_list)
+
+    #     # rebuild_network
+    #     ctr = 0
+    #     for name, layer in self.named_modules():
+    #         if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+    #             layer.weight.data = out_layers[ctr].reshape(shape_d[name])
+    #             ctr += 1
+        
+    #     if self.logger != None:
+    #         self.logger.info(f"Applied generalGSP to Model! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {sps}" \
+    #                          f"Filter-Proj: {self.proj_filters}")
 
     def get_model_sps(self):
         nonzero = total = 0
