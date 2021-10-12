@@ -8,7 +8,7 @@ import numpy as np
 
 import sys 
 sys.path.append('/data/users2/rohib/github/testing')
-import utils_gsp.sps_tools as sps_tools
+# import utils_gsp.sps_tools as sps_tools
 import utils_gsp.gpu_projection as gsp_gpu
 
 class GSP_Model:
@@ -98,7 +98,7 @@ class GSP_Model:
     def get_layer_sps(self):
         for name, layer in self.model.named_modules():
             if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
-                layer_sps = sps_tools.sparsity(layer.weight.data.detach())
+                layer_sps = sparsity(layer.weight.data.detach())
                 print(f"Sparsity of layer: {name}: {layer_sps}")
 
    
@@ -172,3 +172,23 @@ class GSP_Model:
         module.mask.requires_grad_(False)
         mask = module.mask
         module.weight.data.mul_(mask.to(module.weight.get_device()))
+
+# --------------------------------------------------------------------------------------------------------
+def sparsity(matrix):
+    device = matrix.device
+    matrix = matrix.detach().clone()
+    ni = torch.tensor(matrix.shape[0], device=device)
+
+    # Get Indices of columns with all-0 vectors.
+    zero_col_ind = (abs(matrix.sum(0) - 0) < 2.22e-16).nonzero().reshape(-1)  
+    spx_c = (torch.sqrt(ni) - torch.norm(matrix,1, dim=0) / torch.norm(matrix,2, dim=0)) / (torch.sqrt(ni) - 1)
+
+    if len(zero_col_ind) != 0:
+        spx_c[zero_col_ind] = 1  # Sparsity = 1 if column already zero vector.
+    
+    if matrix.dim() > 1:   
+        # sps_avg =  spx_c.sum() / matrix.shape[1]
+        sps_avg = spx_c.mean()
+    elif matrix.dim() == 1:  # If not a matrix but a column vector!
+        sps_avg =  spx_c    
+    return sps_avg

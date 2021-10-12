@@ -18,7 +18,7 @@ import torch.nn as nn
 
 import sys
 sys.path.append('../')
-import utils_gsp.padded_gsp as gsp_global
+# import utils_gsp.padded_gsp as gsp_global
 import utils_gsp.gpu_projection as gsp_gpu
 import os
 

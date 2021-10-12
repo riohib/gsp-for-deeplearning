@@ -126,7 +126,7 @@ def gmu(p_matrix, xp_mat, mu=0, *args):
 # --------------------------------------------------------------------------------------------------- #
 # ------------------------------------- groupedsparseproj ------------------------------------------- #
 # --------------------------------------------------------------------------------------------------- #
-def groupedsparseproj(input_data, sps, precision=1e-6, linrat=0.9):
+def GSP(input_data, sps, precision=1e-6, linrat=0.9):
     # sps = 0.9 ;  precision=1e-6; linrat=0.9
     """
     This function will produce a sparse matrix of the matrices in the input_data. This a padded 

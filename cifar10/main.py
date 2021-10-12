@@ -19,7 +19,7 @@ from datetime import datetime
 import sys 
 sys.path.append('..')
 from utils_gsp.logger import Logger
-from utils_gsp import sps_tools
+# from utils_gsp import sps_tools
 from gsp_model import GSP_Model
 
 import networks.load as load
