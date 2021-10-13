@@ -204,7 +204,7 @@ def sparsity(matrix):
     ni = torch.tensor(matrix.shape[0], device=device)
 
     # Get Indices of columns with all-0 vectors.
-    zero_col_ind = (abs(matrix.sum(0) - 0) < 2.22e-16).nonzero().reshape(-1)  
+    zero_col_ind = (abs(matrix - 0).sum(0) < 2.22e-16).nonzero().reshape(-1)  
     spx_c = (torch.sqrt(ni) - torch.norm(matrix,1, dim=0) / torch.norm(matrix,2, dim=0)) / (torch.sqrt(ni) - 1)
 
     if len(zero_col_ind) != 0:
