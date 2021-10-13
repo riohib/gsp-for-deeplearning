@@ -10,47 +10,69 @@ import sys
 sys.path.append('/data/users2/rohib/github/testing')
 # import utils_gsp.sps_tools as sps_tools
 import utils_gsp.gpu_projection as gsp_gpu
-# import utils_gsp.gsp_general as gsp_gen
+import utils_gsp.gsp_general as gsp_gen
 
 class GSP_Model:
     def __init__(self, model, sps=0.8) -> None:
         #  Class Variables for GSP
         self.model = model
         
+        self.total_epochs = None
         self.curr_epoch = 0
         self.curr_iter = 0
         
-        self.start_gsp_epoch = 0
         self.gsp_training_mode = False
-        self.sps = 0.0
+        self.start_gsp_epoch = 0
         self.gsp_int = 0
-        self.proj_filters = True
-        
+        self.sps = 0.0
+        self.scheduled_sps_run = False
+        self.project_model = False # Controls whether to project the whol model simultaneously.
+        self.proj_filters = True  # If not projecting model, and just projecting layers, 
+                                  # Controls whether to project filters or kernels per layer.
         self.logger = None
         self.masks = None
         self.train_loader_len = None
         self.device = next(self.model.parameters()).device
     
     
+    def _create_sps_schedule(self):
+        assert self.total_epochs is not None, "Total Epoch is None"
+
+        ep_range = torch.arange(self.total_epochs)
+        sps_schedule = 1- (self.total_epochs**(-ep_range/self.total_epochs))
+        return sps_schedule
+    
+
     def mask_out_parameters(self):
+        """
+        Multiply the parameters with the corresponding masks to zero out the masked parameters.
+        """
         for name, module in self.model.named_modules():
             if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
                 module.weight.data = module.weight.data * self.masks[module]
+
     
     def apply_gsp(self, sps=None):
         sps = self.sps if (sps == None) else sps # To use this method with sparsity as argument. Default will use self.sps.
 
         if self.gsp_training_mode and (self.curr_epoch > self.start_gsp_epoch) and (self.curr_iter % self.gsp_int == 0):
-            print(f"Applying GSP!! GSP_Mode: {self.gsp_training_mode}")
-            self._apply_gsp_to_layers(sps)
-            # print(f"The total MODEL SPS: {self.get_model_sps():.2f}")
+            if self.scheduled_sps_run:
+                self.sps_schedule = self._create_sps_schedule()
+                sps = self.sps_schedule[self.curr_epoch]
+
+            if self.project_model == False:    
+                print(f"Projecting layers with GSP!! | GSP_Mode: {self.gsp_training_mode}")
+                self._apply_gsp_to_layers(sps)
+            else:
+                print(f"Projecting whole Model with GSP!! | GSP_Mode: {self.gsp_training_mode}")
+                self._project_all_layers(sps)
         
+        # Update Internal epoch and iterations
         if self.curr_iter == (self.train_loader_len-1):
             self.curr_iter = 0
             self.curr_epoch +=1 
         else:
             self.curr_iter += 1
-    
 
     def force_apply_gsp(self, sps=None):
         sps = self.sps if (sps == None) else sps # To use this method with sparsity as argument. Default will use self.sps.
@@ -70,34 +92,35 @@ class GSP_Model:
                     layer.weight.data = gsp_gpu.groupedsparseproj(gsp_in, sps = sps).reshape(w_shape)
         
 
-        if self.logger != None:
-            self.logger.info(f"Applied GSP to all Layers! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {sps}" \
-                             f"Filter-Proj: {self.proj_filters}")
+        if self.logger:
+            self.logger.info(f"Applied GSP to all Layers! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} \
+                 | sps: {sps:.4f} | Filter-Proj: {self.proj_filters} ")
 
 
-    # def project_all_layers(self, sps):
-    #     layer_d = dict()
-    #     shape_d = dict()
-    #     ctr = 0
-    #     for i, (name, layer) in enumerate(self.model.named_modules()):
-    #         if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
-    #             shape_d[name] = layer.weight.shape
-    #             layer_d[ctr] = layer.weight.data.detach().clone().flatten()
-    #             ctr+=1
+    def _project_all_layers(self, sps):
+        layer_d = dict()
+        shape_d = dict()
+        ctr = 0
+        for i, (name, layer) in enumerate(self.model.named_modules()):
+            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+                shape_d[name] = layer.weight.shape
+                layer_d[ctr] = layer.weight.data.detach().clone().flatten()
+                ctr+=1
 
-    #     xp_mat, ni_list = gsp_gen.GSP(layer_d, sps=sps)
-    #     out_layers = gsp_gen.unpad_output_mat(xp_mat, ni_list)
+        xp_mat, ni_list = gsp_gen.GSP(layer_d, sps=sps)
+        out_layers = gsp_gen.unpad_output_mat(xp_mat, ni_list)
 
-    #     # rebuild_network
-    #     ctr = 0
-    #     for name, layer in self.named_modules():
-    #         if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
-    #             layer.weight.data = out_layers[ctr].reshape(shape_d[name])
-    #             ctr += 1
+        # rebuild_network
+        ctr = 0
+        for name, layer in self.model.named_modules():
+            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+                layer.weight.data = out_layers[ctr].reshape(shape_d[name])
+                ctr += 1
         
-    #     if self.logger != None:
-    #         self.logger.info(f"Applied generalGSP to Model! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {sps}" \
-    #                          f"Filter-Proj: {self.proj_filters}")
+        if self.logger:
+            self.logger.info(f" Applied generalGSP to Model! Epoch: {self.curr_epoch} | Iter: {self.curr_iter} | sps: {sps}" \
+                             f" | Filter-Proj: {self.proj_filters} ")
+
 
     def get_model_sps(self):
         nonzero = total = 0
@@ -197,6 +220,48 @@ class GSP_Model:
         mask = module.mask
         module.weight.data.mul_(mask.to(module.weight.get_device()))
 
+    # ====================================== HOYER SQUARE ==========================================
+    # def hoyer_square(self):
+    #     reg = 0.0
+    #     reg = (torch.sum(torch.abs(param))**2)/torch.sum(param**2)
+
+# ========================================================================================================
+# class HoyerRegularizer:
+#     def __init__(self, model, loss, decay) -> None:
+#         self.model = model
+#         self.decay = decay
+#         self.loss = loss
+
+    
+def hoyer_square(model, decay, loss):
+    reg = 0.0
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+            reg += (torch.sum(torch.abs(module.weight))**2)/torch.sum(module.weight**2)
+    orig_loss = loss
+    loss = loss + decay * reg 
+    return orig_loss, loss
+
+
+def group_hoyer_sq(model, decay, loss):
+    reg=0.0
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d):
+            param = module.weight
+            reg += ( (torch.sum(torch.sqrt(torch.sum(param**2,(0,2,3))))**2) 
+                    + (torch.sum(torch.sqrt(torch.sum(param**2,(1,2,3))))**2) )/torch.sum(param**2)    
+    
+        if isinstance(module, nn.Linear):
+            param = module.weight
+            reg += ( (torch.sum(torch.sqrt(torch.sum(param**2,0)))**2) 
+                    + (torch.sum(torch.sqrt(torch.sum(param**2,1)))**2) )/torch.sum(param**2)
+
+    orig_loss = loss
+    loss = loss + decay * reg 
+    return orig_loss, loss
+    
+
+# Functions
 # --------------------------------------------------------------------------------------------------------
 def sparsity(matrix):
     device = matrix.device

@@ -20,7 +20,7 @@ import sys
 sys.path.append('..')
 from utils_gsp.logger import Logger
 # from utils_gsp import sps_tools
-from gsp_model import GSP_Model
+from gsp_model import GSP_Model, hoyer_square, group_hoyer_sq
 
 import networks.load as load
 
@@ -89,6 +89,12 @@ parser.add_argument('--finetune', action='store_true',
 parser.add_argument('--finetune-sps', default=0.85, type=float,
                     metavar='SPS', help='gsp sparsity value')
 
+parser.add_argument('--hoyer-reg', action='store_true',
+                    help='Train the model with Hoyer Square Regularizer')
+parser.add_argument('--reg-decay', default=8e-7, type=float,
+                    metavar='REGDECAY', help='Hoyer Square Regularizer Weight Parameter')
+
+
 best_acc1 = 0
 best_epoch = 0
 
@@ -113,7 +119,6 @@ def gsp_sparse_training(model, train_loader, args):
     model.logger = args.filelogger
 
     # Extract modes for GSP
-    model.total_epochs = args.epochs
     model.start_gsp_epoch = args.gsp_start_ep
     model.gsp_int = args.gsp_int
     model.sps = args.gsp_sps
@@ -201,7 +206,7 @@ def main():
             print("*=> LOADING FAILED: no checkpoint found at '{}'".format(args.resume))
 
 
-    # ============================ Setup GSP model ============================
+    # ============================ Setup GSP model ============================        
     if args.gsp_training and not args.baseline:
         gsp_sparse_training(model_gsp, train_loader, args)
         flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
@@ -210,13 +215,15 @@ def main():
     if args.finetune and not args.baseline:
         flogger.info(15*"*" + " Model will be finetuned!! " + 15*"*")
         model_gsp.prune_and_mask_model(sps=args.finetune_sps)
+    
+    if args.gsp_training and not args.baseline:
+        flogger.info(15*"*" + " Model will be regularized with HoyerSquare " + 15*"*" )
+
 
     if args.evaluate:
         validate(val_loader, model, criterion)
         return
 
-    # Load data to GPU for faster processing since Cifar10 is quite a small dataset:
-    train_loader, val_loader = dataloader_to_gpu(train_loader, val_loader)
 
 
     scheduler = MultiStepLR(optimizer, milestones=args.lr_drop, last_epoch=args.start_epoch - 1)
@@ -289,13 +296,17 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=N
             input_var = input_var.half()
 
         # ============================ Apply GSP ============================
-        if args.gsp_training:
+        if args.gsp_training and not args.finetune and not args.hoyer_reg:
             model_gsp.apply_gsp()
         # ===================================================================
 
         # compute output
         output = model_gsp.model(input_var)
         loss = criterion(output, target_var)
+
+        # --------------------------- Hoyer Square ---------------------------
+        if args.hoyer_reg and not args.gsp_training and not args.finetune:
+            orig_loss, loss = hoyer_square(model_gsp.model, args.reg_decay, loss)
 
         if i % len_trainloader == 0:
             flogger.info(f"modelSPS before optimization: {model_gsp.get_model_sps():.2f}%")
@@ -317,10 +328,10 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=N
         end = time.time()
 
         if i % args.print_freq == 0:
-            flogger.info(f"Training: epoch:[{epoch}][{i}/{len(train_loader)}] | Acc@1: {top1.avg:.2f} |" \
-                f"LR: {optimizer.param_groups[0]['lr']:.5f} | Mcurr_epoch {model_gsp.curr_epoch}/{epoch}"\
+            flogger.info(f"Training: epoch:[{epoch}][{i}/{len(train_loader)}] | Acc@1: {top1.avg:.2f}" \
+                f" | OrigLoss: {orig_loss:.3f} | loss: {loss:.3f}" \
+                f" | LR: {optimizer.param_groups[0]['lr']:.5f} | Mcurr_epoch {model_gsp.curr_epoch}/{epoch}" \
                 f" | Mcurr_itr: {model_gsp.curr_iter-1}/{i} | modelSPS: {model_gsp.get_model_sps():.2f}%")
-
         
 
 def validate(val_loader, model, criterion, args):
