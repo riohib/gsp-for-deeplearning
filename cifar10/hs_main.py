@@ -91,7 +91,7 @@ parser.add_argument('--finetune-sps', default=0.85, type=float,
 
 parser.add_argument('--hoyer-reg', action='store_true',
                     help='Train the model with Hoyer Square Regularizer')
-parser.add_argument('--reg-decay', default=8e-7, type=float,
+parser.add_argument('--reg-decay', default=8e-4, type=float,
                     metavar='REGDECAY', help='Hoyer Square Regularizer Weight Parameter')
 
 

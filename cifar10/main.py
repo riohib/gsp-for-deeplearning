@@ -71,6 +71,8 @@ parser.add_argument( "--logdir", metavar="LOGDIR", default="/logs",
 parser.add_argument('--baseline', action='store_true',
                     help='Train a baseline dense model!')
 
+parser.add_argument('--scheduled-sps-run', action='store_true',
+                    help='set negative exponentially rising value of sparsity')
 parser.add_argument('--gsp-training', action='store_true',
                     help='Train the model with gsp projection every few iteration (--gsp-int)')
 parser.add_argument('--gsp-sps', default=0.8, type=float,
@@ -88,6 +90,9 @@ parser.add_argument('--finetune', action='store_true',
                     help='Finetune a select subset of parameters of a sparse model.')
 parser.add_argument('--finetune-sps', default=0.85, type=float,
                     metavar='SPS', help='gsp sparsity value')
+
+parser.add_argument('--random-pruning', action='store_true',
+                    help='Finetune a select subset of parameters of a sparse model.')
 
 best_acc1 = 0
 best_epoch = 0
@@ -112,8 +117,9 @@ def gsp_sparse_training(model, train_loader, args):
     model.train_loader_len = len(train_loader)
     model.logger = args.filelogger
 
-    # Extract modes for GSP
+    # Extract GSP training mode from parsed arguments
     model.total_epochs = args.epochs
+    model.scheduled_sps_run = args.scheduled_sps_run
     model.start_gsp_epoch = args.gsp_start_ep
     model.gsp_int = args.gsp_int
     model.sps = args.gsp_sps
@@ -172,6 +178,7 @@ def main():
     # ----------------------- Make a GSP Model -----------------------
     model_gsp = GSP_Model(model)
 
+
     flogger.info(f"The sparsity of Initialized Model: {model_gsp.get_model_sps():.2f}")
     args.writer = SummaryWriter(log_dir=f'results/{args.exp_name}/runs/{datetime.now().strftime("%m-%d_%H:%M")}')
     
@@ -205,6 +212,11 @@ def main():
     if args.gsp_training and not args.baseline:
         gsp_sparse_training(model_gsp, train_loader, args)
         flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
+
+    # If we should run a random Pruning Experiment
+    if args.random_pruning:
+        model_gsp.logger = args.filelogger
+        model_gsp.is_rand_prune = args.random_pruning
 
     # ============== PRUNE the model and Register Mask ==============
     if args.finetune and not args.baseline:

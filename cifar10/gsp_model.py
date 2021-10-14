@@ -21,6 +21,8 @@ class GSP_Model:
         self.curr_epoch = 0
         self.curr_iter = 0
         
+        self.is_rand_prune = False
+
         self.gsp_training_mode = False
         self.start_gsp_epoch = 0
         self.gsp_int = 0
@@ -152,6 +154,11 @@ class GSP_Model:
     
     # =================================== Pruning Methods =======================================
     def prune_and_mask_model(self, sps):
+        self.logger.info(f"Value of is Rand: {self.is_rand_prune}")
+        if self.is_rand_prune:
+            self.logger.info(f"=> Random Pruning of the Network Undergoing! \n")
+            self._random_prune(sps)
+
         self._prune_model_with_sps(sps)
         masks_d, _ = self._mask_zeros()
         self._register_pre_hook_mask(masks_d)
@@ -193,6 +200,14 @@ class GSP_Model:
                 layer.weight.data = masked_tensor
         return masks_d, mask_l
 
+
+    def _random_prune(self, sps=0.95):
+        for name, layer in self.model.named_modules():
+            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+                num = layer.weight.data.numel()
+                num_zero = int(round(num*sps))
+                indices = torch.randperm(num)[:num_zero]
+                layer.weight.data.flatten()[[indices]] = 0.
 
 
     # =================================== Finetuning Methods =======================================
