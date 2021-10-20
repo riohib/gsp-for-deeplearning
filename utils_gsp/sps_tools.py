@@ -160,7 +160,7 @@ def sparsity(matrix):
     ni = torch.tensor(matrix.shape[0], device=device)
 
     # Get Indices of columns with all-0 vectors.
-    zero_col_ind = (abs(matrix.sum(0) - 0) < 2.22e-16).nonzero().reshape(-1)  
+    zero_col_ind = (abs(matrix - 0).sum(0) < 2.22e-16).nonzero().reshape(-1)  
     spx_c = (torch.sqrt(ni) - torch.norm(matrix,1, dim=0) / torch.norm(matrix,2, dim=0)) / (torch.sqrt(ni) - 1)
 
     if len(zero_col_ind) != 0:
@@ -256,7 +256,7 @@ def apply_gsp(model, sps, gsp_func = gsp_gpu, is_fw=True):
                     param.data = gsp_func.groupedsparseproj(param.detach(), sps)
             counter += 1
 
-def get_layerwise_sps(model):
+def get_layerwise_sps(model, transpose=False):
     """
     This function will output a list of layerwise sparsity of a LeNet-5 CNN model.
     The sparsity measure is the Hoyer Sparsity Measure.
@@ -264,15 +264,16 @@ def get_layerwise_sps(model):
     counter = 0
     weight_d = {}
     sps_d = {}
-    for name, param in model.named_parameters(): 
-        if 'weight' in name:
-            if param.dim() > 2:  #Only two different dimension for LeNet-5
-                w_shape = param.shape
-                dim_1 = w_shape[0] * w_shape[1]
-                weight_d[counter] = param.detach().view(dim_1,-1)
+    for name, layer in model.named_modules():
+        if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+            param = layer.weight.data.detach()
+            w_shape = param.shape
+            dim_1 = w_shape[0]
+            weight_d[counter] = param.detach().reshape(dim_1,-1)
+            if not transpose:
                 sps_d[name] = sparsity(weight_d[counter])
             else:
-                sps_d[name] = sparsity(param.data)
+                sps_d[name] = sparsity(weight_d[counter].T)
             counter += 1
     
     w_name_list = [x for x in sps_d.keys()] 

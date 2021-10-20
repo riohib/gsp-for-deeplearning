@@ -66,5 +66,5 @@ class VGG(nn.Module):
         return x
 
 
-def vgg16():
-    return VGG('D')
+def vgg16(num_classes):
+    return VGG('D', num_classes)

@@ -20,9 +20,12 @@ import sys
 sys.path.append('..')
 from utils_gsp.logger import Logger
 # from utils_gsp import sps_tools
+import datasets.dataprep as dataprep
+
 from gsp_model import GSP_Model
 
 import networks.load as load
+import networks.torch_vgg as pt_vgg
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -31,6 +34,11 @@ from torch.utils.tensorboard import SummaryWriter
 parser = argparse.ArgumentParser(description='Propert ResNets for CIFAR10 in pytorch')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet32',
                     help='model architecture to use!')
+
+parser.add_argument('--dataset', default='cifar10',
+                    choices=['cifar10', 'cifar100'],
+                    type=str, metavar='DATASET', help='type of dataset to choose')
+
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=160, type=int, metavar='N',
@@ -147,37 +155,23 @@ def main():
     args.logger.log_cmd_arguments(args)
 
     # Load Model
-    model = load.model(args.arch)
+    if args.dataset == 'cifar10': num_classes = 10
+    if args.dataset == 'cifar100': num_classes = 100
+    
+    if args.arch == 'resnet20': model = load.model(args.arch, num_classes=num_classes)
+    if args.arch == 'vgg16':    model = pt_vgg.vgg16_bn(num_classes=num_classes)
+    if args.arch == 'vgg19':    model = pt_vgg.vgg19_bn(num_classes=num_classes)
+    
     model = torch.nn.DataParallel(model)
     model.cuda()
 
     cudnn.benchmark = True
 
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-
-    train_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10(root='./data', train=True, transform=transforms.Compose([
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(32, 4),
-            transforms.ToTensor(),
-            normalize,
-        ]), download=True),
-        batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True)
-
-    val_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10(root='./data', train=False, transform=transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=128, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
-
+    train_loader, val_loader = dataprep.get_data_loaders(dataset=args.dataset, args=args)
 
     # ----------------------- Make a GSP Model -----------------------
     model_gsp = GSP_Model(model)
-
+    model_gsp.logger = args.filelogger # Initiate Logger
 
     flogger.info(f"The sparsity of Initialized Model: {model_gsp.get_model_sps():.2f}")
     args.writer = SummaryWriter(log_dir=f'results/{args.exp_name}/runs/{datetime.now().strftime("%m-%d_%H:%M")}')
@@ -215,7 +209,6 @@ def main():
 
     # If we should run a random Pruning Experiment
     if args.random_pruning:
-        model_gsp.logger = args.filelogger
         model_gsp.is_rand_prune = args.random_pruning
 
     # ============== PRUNE the model and Register Mask ==============
