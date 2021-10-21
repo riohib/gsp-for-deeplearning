@@ -34,6 +34,8 @@ from torch.utils.tensorboard import SummaryWriter
 parser = argparse.ArgumentParser(description='Propert ResNets for CIFAR10 in pytorch')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet32',
                     help='model architecture to use!')
+parser.add_argument('--single-linear', action='store_true',
+                    help='Set only one linear layer in model classifier!')
 
 parser.add_argument('--dataset', default='cifar10',
                     choices=['cifar10', 'cifar100'],
@@ -161,7 +163,12 @@ def main():
     if args.arch == 'resnet20': model = load.model(args.arch, num_classes=num_classes)
     if args.arch == 'vgg16':    model = pt_vgg.vgg16_bn(num_classes=num_classes)
     if args.arch == 'vgg19':    model = pt_vgg.vgg19_bn(num_classes=num_classes)
-    
+
+    if args.single_linear:
+        flogger.info(f"Training VGG model with one linear layer in classifier!")
+        model.classifier = nn.Sequential(nn.Linear(512, num_classes))
+    print(f"Model: {model}")
+
     model = torch.nn.DataParallel(model)
     model.cuda()
 
@@ -294,8 +301,7 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=N
             input_var = input_var.half()
 
         # ============================ Apply GSP ============================
-        if args.gsp_training:
-            model_gsp.apply_gsp()
+        if args.gsp_training: model_gsp.apply_gsp()
         # ===================================================================
 
         # compute output

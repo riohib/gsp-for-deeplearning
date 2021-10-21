@@ -4,9 +4,14 @@ import torch.nn.functional as F
 
 VGG_CONFIGS = {
     # M for MaxPool, Number for channels
-    'D': [
+    'vgg16': [
         64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M',
         512, 512, 512, 'M'
+    ],
+    
+    'vgg19': [
+        64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 
+        512, 512, 512, 512,'M'
     ],
 }
 
@@ -66,5 +71,8 @@ class VGG(nn.Module):
         return x
 
 
-def vgg16(num_classes):
-    return VGG('D', num_classes)
+def vgg16(num_classes=10):
+    return VGG('vgg16', num_classes)
+
+def vgg19(num_classes=10):
+    return VGG('vgg19', num_classes)

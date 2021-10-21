@@ -38,17 +38,21 @@ def get_data_loaders(dataset, args):
             batch_size=128, shuffle=False,
             num_workers=args.workers, pin_memory=True)
     
-
+    
+    # 0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010
 
     if dataset == 'cifar100':
         print("Preparing Cifar100 dataset!")
+        # normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+        #                                     std=[0.2675, 0.2565, 0.2761])
+
         normalize = transforms.Normalize(mean=[0.5071, 0.4867, 0.4408],
-                                            std=[0.2675, 0.2565, 0.2761])
+                                         std=[0.2023, 0.1994, 0.2010])
 
         train_loader = torch.utils.data.DataLoader(
             datasets.CIFAR100(root='./data', train=True, transform=transforms.Compose([
+                transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, 4),
                 transforms.ToTensor(),
                 normalize,
             ]), download=True),
