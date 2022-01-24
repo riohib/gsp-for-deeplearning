@@ -14,7 +14,7 @@ import torchvision.datasets as datasets
 import networks.resnet as resnet
 from torch.optim.lr_scheduler import MultiStepLR
 
-from datetime import datetime
+import datetime
 
 import sys 
 sys.path.append('..')
@@ -155,22 +155,21 @@ def main():
     # Setup the experiment
     flogger = setup_experiment(args)
     args.logger.log_cmd_arguments(args)
+    print_date_time(flogger)
 
     # Load Model
     if args.dataset == 'cifar10': num_classes = 10
-    if args.dataset == 'cifar100': num_classes = 100
-    
-    if args.arch == 'resnet20': model = load.model(args.arch, num_classes=num_classes)
     if args.arch == 'vgg16':    model = pt_vgg.vgg16_bn(num_classes=num_classes)
-    if args.arch == 'vgg19':    model = pt_vgg.vgg19_bn(num_classes=num_classes)
+    if args.arch == 'resnet56': model = resnet.resnet56(num_classes=num_classes)
+    if args.arch == 'resnet110': model = resnet.resnet56(num_classes=num_classes)
 
     if args.single_linear:
         flogger.info(f"Training VGG model with one linear layer in classifier!")
         model.classifier = nn.Sequential(nn.Linear(512, num_classes))
-    print(f"Model: {model}")
 
     model = torch.nn.DataParallel(model)
     model.cuda()
+    print(f"Model: {model}")
 
     cudnn.benchmark = True
 
@@ -181,7 +180,7 @@ def main():
     model_gsp.logger = args.filelogger # Initiate Logger
 
     flogger.info(f"The sparsity of Initialized Model: {model_gsp.get_model_sps():.2f}")
-    args.writer = SummaryWriter(log_dir=f'results/{args.exp_name}/runs/{datetime.now().strftime("%m-%d_%H:%M")}')
+    args.writer = SummaryWriter(log_dir=f'results/{args.exp_name}/runs/{datetime.datetime.now().strftime("%m-%d_%H:%M")}')
     
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
@@ -272,7 +271,8 @@ def main():
 
     # Exit
     flogger.info(f"\n Final Model SPS: {model_gsp.get_model_sps():.2f}% | Best @acc: {best_acc1} achieved in epoch: {best_epoch}")
-
+    print_date_time(flogger)
+    
 
 def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=None):
     """
@@ -430,6 +430,13 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+
+def print_date_time(flogger):
+    today = datetime.date.today()
+    date = today.strftime('%b %d, %Y')
+    time = datetime.datetime.now(); 
+    time = time.strftime("%H:%M:%S")
+    flogger.info(f"Current date and time: {date} -> {time}")
 
 
 if __name__ == '__main__':

@@ -55,3 +55,4 @@ main_model.py
 *.yml
 *.ipynb_checkpoints
 *.eps
+events*
