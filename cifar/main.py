@@ -160,8 +160,9 @@ def main():
     # Load Model
     if args.dataset == 'cifar10': num_classes = 10
     if args.arch == 'vgg16':    model = pt_vgg.vgg16_bn(num_classes=num_classes)
+    if args.arch == 'resnet20': model = resnet.resnet56(num_classes=num_classes)
     if args.arch == 'resnet56': model = resnet.resnet56(num_classes=num_classes)
-    if args.arch == 'resnet110': model = resnet.resnet56(num_classes=num_classes)
+    if args.arch == 'resnet110': model = resnet.resnet110(num_classes=num_classes)
 
     if args.single_linear:
         flogger.info(f"Training VGG model with one linear layer in classifier!")
@@ -226,8 +227,9 @@ def main():
         validate(val_loader, model, criterion)
         return
 
-    # Load data to GPU for faster processing since Cifar10 is quite a small dataset:
-    train_loader, val_loader = dataloader_to_gpu(train_loader, val_loader)
+    # # Load data to GPU for faster processing since Cifar10 is quite a small dataset:
+    # This results in lower accuracy, possibly due to the lack of data shuffling. Do not use it!
+    # train_loader, val_loader = dataloader_to_gpu(train_loader, val_loader)
 
 
     scheduler = MultiStepLR(optimizer, milestones=args.lr_drop, last_epoch=args.start_epoch - 1)
