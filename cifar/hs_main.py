@@ -12,6 +12,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import networks.resnet as resnet
+import networks.torch_vgg as vgg
 from torch.optim.lr_scheduler import MultiStepLR
 
 from datetime import datetime
@@ -31,6 +32,9 @@ from torch.utils.tensorboard import SummaryWriter
 parser = argparse.ArgumentParser(description='Propert ResNets for CIFAR10 in pytorch')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet32',
                     help='model architecture to use!')
+parser.add_argument('--dataset', default='cifar10',
+                    choices=['cifar10', 'cifar100'],
+                    type=str, metavar='DATASET', help='type of dataset to choose')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=160, type=int, metavar='N',
@@ -146,7 +150,12 @@ def main():
     args.logger.log_cmd_arguments(args)
 
     # Load Model
-    model = load.model(args.arch)
+    # Load Model
+    if args.dataset == 'cifar10': num_classes = 10
+    if args.dataset == 'cifar100': num_classes = 100
+    if 'resnet' in args.arch: model = resnet.__dict__[args.arch]()
+    if 'vgg' in args.arch: model = vgg.__dict__[args.arch](num_classes=num_classes)
+
     model = torch.nn.DataParallel(model)
     model.cuda()
 
