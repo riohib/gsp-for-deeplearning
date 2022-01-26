@@ -25,7 +25,7 @@ import datasets.dataprep as dataprep
 from gsp_model import GSP_Model
 
 import networks.load as load
-import networks.torch_vgg as pt_vgg
+import networks.torch_vgg as vgg
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -107,7 +107,6 @@ parser.add_argument('--random-pruning', action='store_true',
 best_acc1 = 0
 best_epoch = 0
 
-
 def setup_experiment(args):
     if not os.path.exists(f'./results/{args.exp_name}'):
         os.makedirs(f'./results/{args.exp_name}', exist_ok=True)
@@ -150,8 +149,8 @@ def gsp_sparse_training(model, train_loader, args):
 def main():
     global args, best_acc1
     args = parser.parse_args()
-    
-    # torch.manual_seed(0)
+    torch.manual_seed(0)
+
     # Setup the experiment
     flogger = setup_experiment(args)
     args.logger.log_cmd_arguments(args)
@@ -159,10 +158,15 @@ def main():
 
     # Load Model
     if args.dataset == 'cifar10': num_classes = 10
-    if args.arch == 'vgg16':    model = pt_vgg.vgg16_bn(num_classes=num_classes)
-    if args.arch == 'resnet20': model = resnet.resnet56(num_classes=num_classes)
-    if args.arch == 'resnet56': model = resnet.resnet56(num_classes=num_classes)
-    if args.arch == 'resnet110': model = resnet.resnet110(num_classes=num_classes)
+    if args.dataset == 'cifar100': num_classes = 100
+
+    if 'resnet' in args.arch: model = resnet.__dict__[args.arch]()
+    if 'vgg' in args.arch: model = vgg.__dict__[args.arch](num_classes=num_classes)
+
+    # if args.arch == 'vgg16':    model = pt_vgg.vgg16_bn(num_classes=num_classes)
+    # if args.arch == 'resnet20': model = resnet.resnet56(num_classes=num_classes)
+    # if args.arch == 'resnet56': model = resnet.resnet56(num_classes=num_classes)
+    # if args.arch == 'resnet110': model = resnet.resnet110(num_classes=num_classes)
 
     if args.single_linear:
         flogger.info(f"Training VGG model with one linear layer in classifier!")
