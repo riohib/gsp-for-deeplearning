@@ -130,7 +130,7 @@ parser.add_argument('--gsp-int', default=500, type=int,
 
 parser.add_argument('--finetuning', action='store_true',
                     help='Finetune a select subset of parameters of a sparse model.')
-parser.add_argument('--finetune-sps', default=0.70, type=float,
+parser.add_argument('--finetune-sps', default=0.80, type=float,
                     metavar='SPS', help='gsp sparsity value')
 best_acc1 = 0
 
@@ -288,6 +288,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.gsp_training:
         flogger.info(15*"*" + " Model will be trained with GSP Sparsity!! " + 15*"*" )
 
+
     # PRUNE the model and Register Mask
     # NOTE: The following code block was after args.resume and it ran okay while training from scratch 
     # and finetuning from training. Now during resume from finetuning, I am bringing this up for proper
@@ -314,6 +315,14 @@ def main_worker(gpu, ngpus_per_node, args):
             if args.gpu is not None:
                 # best_acc1 may be from a checkpoint from a different GPU
                 best_acc1 = best_acc1.to(args.gpu)
+            
+            # Check if Masks are already registered. This happens when resuming from the middle of 
+            # a finetuning run.
+            # if any(['mask' in x for x, _ in model.named_parameters()]):
+            #     flogger.info(10*"*" + f" Regitering Mask Before Resuming" + 10*"*")
+            #     masks_d, masks_l = sps_tools.get_conv_linear_mask(model_gsp.model.module)
+            #     model_gsp.register_pre_hook_mask(masks_d) # This for forward pre hook mask registration
+            
             model_gsp.model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
 
@@ -323,6 +332,19 @@ def main_worker(gpu, ngpus_per_node, args):
             flogger.info(f"The sparsity of the loaded model: {sps_tools.get_abs_sps(model)[0]:.2f}")
         else:
             flogger.info("=> no checkpoint found at '{}'".format(args.resume))
+
+
+    # # PRUNE the model and Register Mask
+    # # NOTE: The following code block was after args.resume and it ran okay while training from scratch 
+    # # and finetuning from training. Now during resume from finetuning, I am bringing this up for proper
+    # # run. If earlier runs create issues, try putting it back down after resume and look for a better
+    # # solution. 
+    # if args.finetuning:
+    #     flogger.info(15*"*" + f" Model will be finetuned with sps: {args.finetune_sps} " + 15*"*")
+    #     sps_tools.prune_with_sps(model_gsp.model.module, sparsity = args.finetune_sps)
+    #     masks_d, masks_l = sps_tools.get_conv_linear_mask(model_gsp.model.module)
+    #     model_gsp.register_pre_hook_mask(masks_d) # This for forward pre hook mask registration
+    #     # model_gsp.register_hook_mask(model.module, masks_l) # Does not work with DDP
 
 
     if args.resume_lr:
