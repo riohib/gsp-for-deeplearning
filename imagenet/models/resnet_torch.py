@@ -4,10 +4,8 @@ import torch.nn as nn
 # from utils import load_state_dict_from_url
 from typing import Type, Any, Callable, Union, List, Optional
 
-
-import sys 
-sys.path.append('/data/users2/rohib/github/testing')
-import utils_gsp.sps_tools as sps_tools
+import sys; sys.path.append("..")
+from utils_gsp import sps_tools as sps_tools
 import utils_gsp.gpu_projection as gsp_gpu
 
 
