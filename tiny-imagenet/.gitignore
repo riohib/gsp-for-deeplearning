@@ -16,7 +16,6 @@ main_model.py
 *.txt
 *.out
 *.err
-*.sh
 *.pt
 *.gz
 *.pkl

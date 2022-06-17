@@ -24,7 +24,6 @@ main_model.py
 *.txt
 *.out
 *.err
-*.sh
 *.pt
 *.gz
 *.pkl
@@ -35,5 +34,5 @@ main_model.py
 # *.ipynb
 *.pickle
 *.yml
-*.ipynb_checkpoints
+*.ipynb_checkpointssh
 *.eps
