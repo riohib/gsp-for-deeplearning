@@ -23,7 +23,6 @@ from utils_gsp.logger import Logger
 import datasets.dataprep as dataprep
 
 from gsp_model import GSP_Model
-
 import networks.load as load
 import networks.torch_vgg as vgg
 
@@ -138,7 +137,6 @@ def gsp_sparse_training(model, train_loader, args):
     args.filelogger.info(f"GSP_model State: sps: {model.sps} | start_ep: {model.start_gsp_epoch} | " \
                          f"Interval: {model.gsp_int} | Model Proj: {model.project_model} | " \
                          f"Filter Proj: {model.proj_filters}")
-
     if args.resume:
         model.curr_epoch = args.start_epoch
         print(f"Current Epoch: {args.start_epoch}")
