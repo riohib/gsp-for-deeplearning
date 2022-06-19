@@ -210,6 +210,7 @@ def main():
         else:
             print("*=> LOADING FAILED: no checkpoint found at '{}'".format(args.resume))
 
+    import pdb; pdb.set_trace()
 
     # ============================ Setup GSP model ============================
     if args.gsp_training and not args.baseline:
@@ -305,7 +306,7 @@ def train(train_loader, model_gsp, criterion, optimizer, epoch, args, gsp_mode=N
             input_var = input_var.half()
 
         # ============================ Apply GSP ============================
-        if args.gsp_training: model_gsp.apply_gsp()
+        if args.gsp_training: model_gsp.apply_gsp(schedule="linear")
         # ===================================================================
 
         # compute output

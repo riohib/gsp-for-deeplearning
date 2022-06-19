@@ -7,3 +7,5 @@ results
 *.tar.gz
 *.pth.tar
 *.mat
+*.log
+events*

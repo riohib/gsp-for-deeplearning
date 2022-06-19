@@ -44,6 +44,9 @@ class GSP_Model:
         sps_schedule = 1- (self.total_epochs**(-ep_range/self.total_epochs))
         return sps_schedule
     
+    def _linear_sps_schedule(self, start, final):
+        sps_schedule = np.linspace(start, final, self.total_epochs)
+        return sps_schedule
 
     def mask_out_parameters(self):
         """
@@ -54,16 +57,21 @@ class GSP_Model:
                 module.weight.data = module.weight.data * self.masks[module]
 
     
-    def apply_gsp(self, sps=None):
-        sps = self.sps if (sps == None) else sps # To use this method with sparsity as argument. Default will use self.sps.
-
+    def apply_gsp(self, sps=None, schedule=None):
+        if schedule == "linear":
+            sps_schedule = self._linear_sps_schedule(0.2, 0.95)
+            sps = sps_schedule[self.curr_epoch]
+        else:
+            sps = self.sps if (sps == None) else sps # To use this method with sparsity as argument. Default will use self.sps.
+        
+        self.sps = sps
         if self.gsp_training_mode and (self.curr_epoch > self.start_gsp_epoch) and (self.curr_iter % self.gsp_int == 0):
             if self.scheduled_sps_run:
                 self.sps_schedule = self._create_sps_schedule()
                 sps = self.sps_schedule[self.curr_epoch]
 
             if self.project_model == False:    
-                print(f"Projecting layers with GSP!! | GSP_Mode: {self.gsp_training_mode}")
+                print(f"Projecting layers with GSP!! | GSP_Mode: {self.gsp_training_mode} | Sparsity level: {sps}")
                 self._apply_gsp_to_layers(sps)
             else:
                 print(f"Projecting whole Model with GSP!! | GSP_Mode: {self.gsp_training_mode}")
