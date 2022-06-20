@@ -378,7 +378,8 @@ def validate(val_loader, model, criterion, args):
             end = time.time()
 
 
-    args.filelogger.info(f"\n Validation Acc@1: {top1.avg:.3f} \n")
+    # args.filelogger.info(f"\n Validation Acc@1: {top1.avg:.3f} \n")
+    print(f"\n Validation Acc@1: {top1.avg:.3f} \n")
 
     return top1.avg
 
