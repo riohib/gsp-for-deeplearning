@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from main import AverageMeter, accuracy
 
 class ModelAnalysis:
     def __init__(self, model, optimizer, criterion, train_loader, test_loader):
@@ -15,7 +14,11 @@ class ModelAnalysis:
         batch_time = AverageMeter()
         data_time = AverageMeter()
         losses = AverageMeter()
-        top1 = AverageMeter()  
+        top1 = AverageMeter()
+    
+    def re_init_model(self):
+        print('=> weights being re-initialized')
+        self.model.apply(weights_init)
 
     def train_mode(self):
         if not self.model.training:
@@ -71,6 +74,7 @@ class ModelAnalysis:
         self.optimizer.step()
 
     def iterate_once(self):
+        self.train_mode()
         loss = self.sample_forward()
         self.backward(loss)
         self.step()
@@ -91,7 +95,6 @@ class ModelAnalysis:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-
             output = output.float()
             loss = loss.float()
             # measure accuracy and record loss
@@ -100,3 +103,52 @@ class ModelAnalysis:
             top1.update(prec1.item(), data.size(0))
             if i % 20== 0:
                 print(f"Training: batch_id:[{i}] | Acc@1: {top1.avg:.2f} | Loss: {loss.item()}")
+    
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.xavier_normal_(m.weight)
+        if m.bias is not None:
+            m.bias.data.zero_()
+    elif isinstance(m, nn.Linear):
+        nn.init.xavier_normal(m.weight)
+        nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.BatchNorm2d):
+        # Note that BN's running_var/mean are already initialized to 1 and 0 respectively.
+        if m.weight is not None:
+            m.weight.data.fill_(1.0)
+        if m.bias is not None:
+            m.bias.data.zero_()
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+
+def accuracy(output, target, topk=(1,)):
+    """Computes the precision@k for the specified values of k"""
+    maxk = max(topk)
+    batch_size = target.size(0)
+
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+    res = []
+    for k in topk:
+        correct_k = correct[:k].view(-1).float().sum(0)
+        res.append(correct_k.mul_(100.0 / batch_size))
+    return res

@@ -210,8 +210,6 @@ def main():
         else:
             print("*=> LOADING FAILED: no checkpoint found at '{}'".format(args.resume))
 
-    import pdb; pdb.set_trace()
-
     # ============================ Setup GSP model ============================
     if args.gsp_training and not args.baseline:
         gsp_sparse_training(model_gsp, train_loader, args)
@@ -379,7 +377,7 @@ def validate(val_loader, model, criterion, args):
 
 
     # args.filelogger.info(f"\n Validation Acc@1: {top1.avg:.3f} \n")
-    print(f"\n Validation Acc@1: {top1.avg:.3f} \n")
+    args.filelogger.info(f"\n Validation Acc@1: {top1.avg:.3f} \n")
 
     return top1.avg
 

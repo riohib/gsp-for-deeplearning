@@ -80,8 +80,9 @@ parent='vgg/schedule'
 #     for sps in '0.60' '0.70' '0.80' '0.85' '0.9' '0.95' '0.97' '0.98' '0.99'
 
 model='vgg19_bn'
-SPS=0.0
-
-python main.py --arch $model --batch-size 128 --epochs 250 --lr 0.01 --lr-drop 80 120 160 200 \
---exp-name $parent/fine_$sps --finetune --finetune-sps $sps \
---resume /private/home/riohib/testing/gsp-for-deeplearning/cifar/results/vgg/schedule/baseline/model_best.pth.tar
+for SPS in '0.70' '0.80' '0.85' '0.90' '0.95' '0.97'
+do
+    srun python main.py --arch $model --batch-size 128 --epochs 250 --lr 0.01 --lr-drop 80 120 160 200 \
+    --exp-name vgg/${model}_ker/finetune/fine_$SPS --finetune --finetune-sps $SPS \
+    --resume /private/home/riohib/testing/gsp-for-deeplearning/cifar/results/vgg/vgg19_bn_ker/gsp/checkpoint.pth.tar
+done
