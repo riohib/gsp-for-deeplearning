@@ -6,6 +6,6 @@ matrices
 results
 *.tar.gz
 *.pth.tar
-*.mat
+# *.mat
 *.log
 events*
